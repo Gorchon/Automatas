@@ -31,7 +31,7 @@ flex -o lex.yy.cpp triton_lexer.l
 # 2. Compilar
 g++ -std=c++17 -o triton_lexer lex.yy.cpp -ll
 
-# 3. Ejecutar con un archivo de prueba
+# 3. Ejecutar c on un archivo de prueba
 ./triton_lexer tests/test1_basic.triton
 ```
 

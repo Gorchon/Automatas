@@ -1075,11 +1075,6 @@ z = 3.14
 
 ---
 
-## 6. Plan de Trabajo
-
-*POR COMPLETAR*
-
----
 
 ## 7. Referencias
 
