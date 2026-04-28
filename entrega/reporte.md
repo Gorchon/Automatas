@@ -20,8 +20,8 @@
 |  |  |
 |--|--|
 | **Autores:** | José María Soto Valenzuela — A01254831 |
-| | César Alan Silva Ramos — A0XXXXXXX |
-| | Julian Espinoza — A0XXXXXXX |
+| | César Alan Silva Ramos — A01252916 |
+| | Julian Espinoza — A01254679 |
 | | Fong — A0XXXXXXX |
 | **Profesor:** | Dr. Salvador Hinojosa |
 | **Campus:** | Guadalajara |
