@@ -1,0 +1,13 @@
+def compute(x, y):
+    if x >= y and not False:
+        return x ** 2
+    elif x <= y:
+        return y // 2
+    else:
+        pass
+    for i in range(10):
+        while True:
+            break
+        continue
+    z = None
+    flag = x is y or x == y

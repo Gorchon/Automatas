@@ -1,0 +1,13 @@
+@triton.jit
+def add_kernel(x_ptr, y_ptr, output_ptr, n_elements):
+    pid = tl.program_id(0)
+    block_size = 1024
+    offsets = pid * block_size + tl.arange(0, block_size)
+    mask = offsets < n_elements
+    x = tl.load(x_ptr + offsets, mask=mask)
+    y = tl.load(y_ptr + offsets, mask=mask)
+    output = x + y
+    tl.store(output_ptr + offsets, output, mask=mask)
+    # Esto es un comentario que se ignora
+    valor = 3.14 + 0.5
+    msg = "resultado guardado"
