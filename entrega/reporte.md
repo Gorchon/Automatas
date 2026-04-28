@@ -19,8 +19,8 @@
 
 |  |  |
 |--|--|
-| **Autores:** | Jose Maria Soto Valenzuela — A01254831 |
-| | Cesal Alan Silva Ramos — A0XXXXXXX |
+| **Autores:** | José María Soto Valenzuela — A01254831 |
+| | César Alan Silva Ramos — A0XXXXXXX |
 | | Julian Espinoza — A0XXXXXXX |
 | | Fong — A0XXXXXXX |
 | **Profesor:** | Dr. Salvador Hinojosa |
@@ -664,7 +664,7 @@ Cada mensaje de error sigue tres principios de diseño de compiladores [1]:
 
 ## 3. Diseño
 
-Esta sección presenta **cómo** se implementará el scanner. Traduce las especificaciones formales del análisis (sección 2) en autómatas finitos deterministas (AFD), tablas de transición, y estructuras de datos. El objetivo es que este diseño sea suficiente para que cualquier programador pueda implementar el scanner sin información adicional.
+Esta sección presenta **cómo** se implementará el scanner. Traduce las especificaciones formales del análisis (Sección 2) en autómatas finitos deterministas (AFD), tablas de transición, y estructuras de datos. El objetivo es que este diseño sea suficiente para que cualquier programador pueda implementar el scanner sin información adicional.
 
 ### 3.1 Autómatas Finitos Deterministas
 
@@ -1988,7 +1988,7 @@ Todos los casos de prueba pasan exitosamente. El scanner reconoce correctamente 
 |------|-----------|----------|-------------|
 | 1 | Revisión de requerimientos y material bibliográfico (AHO §3.3–3.8) | 1 h | Equipo |
 | 2 | Análisis: descripción informal de lexemas, expresiones regulares, Token IDs, mensajes de error | 1.5 h | Equipo |
-| 3 | Diseño: autómatas DFA, tablas de transición, estructura de tabla de símbolos | 1.5 h | Equipo |
+| 3 | Diseño: autómatas AFD, tablas de transición, estructura de tabla de símbolos | 1.5 h | Equipo |
 | 4 | Implementación del archivo flex (`triton_lexer.l`) | 2 h | Equipo |
 | 5 | Verificación y validación: diseño de pruebas, ejecución, corrección de errores | 1 h | Equipo |
 | 6 | Redacción del reporte y revisión final | 1 h | Equipo |
