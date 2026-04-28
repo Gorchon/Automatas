@@ -676,15 +676,7 @@ Este autómata reconoce identificadores válidos: comienzan con letra o `_`, seg
 
 *Figura 1: AFD para identificadores (NAME)*
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> q0
-    q0 --> q1_acepta : letra o _
-    q1_acepta --> q1_acepta : letra, digito o _
-    q0 --> qErr : digito
-    q1_acepta --> [*] : otro (emite token)
-```
+![Autómata NAME](../Images/NAME_DFA.png)
 
 **Estados:**
 - **q0** — Estado inicial. Espera el primer carácter.
@@ -708,18 +700,7 @@ Reconoce enteros (`[0-9]+`) y flotantes (`[0-9]+.[0-9]+`). El estado q2 (tras el
 
 *Figura 2: AFD para números (NUMBER)*
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> q0
-    q0 --> q1_entero : digito
-    q1_entero --> q1_entero : digito
-    q1_entero --> q2 : punto
-    q2 --> q3_flotante : digito
-    q3_flotante --> q3_flotante : digito
-    q1_entero --> [*] : otro (emite INTEGER)
-    q3_flotante --> [*] : otro (emite FLOAT)
-```
+![Automata NUMBER](../Images/NUMBERS.png)
 
 **Estados:**
 - **q0** — Estado inicial.
@@ -745,18 +726,7 @@ Reconoce cadenas delimitadas por comillas dobles, con soporte para secuencias de
 
 *Figura 3: AFD para cadenas (STRING)*
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> q0
-    q0 --> q1_leyendo : comilla_apertura
-    q1_leyendo --> q1_leyendo : caracter normal
-    q1_leyendo --> q2_escape : backslash
-    q2_escape --> q1_leyendo : cualquier caracter
-    q1_leyendo --> q3_acepta : comilla_cierre
-    q1_leyendo --> qErr : newline o EOF
-    q3_acepta --> [*]
-```
+![Automata string](../Images/STRING.png)
 
 **Estados:**
 - **q0** — Estado inicial. Espera la comilla de apertura.
@@ -784,25 +754,7 @@ Este autómata combina el reconocimiento de tres keywords que comparten prefijos
 
 *Figura 4: AFD combinado para `if`, `else`, `elif`*
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> q0
-
-    q0 --> q_i : i
-    q_i --> q_if : f
-    q_if --> [*] : no alfanum (acepta IF)
-
-    q0 --> q_e : e
-    q_e --> q_el : l
-    q_el --> q_els : s
-    q_els --> q_else : e
-    q_else --> [*] : no alfanum (acepta ELSE)
-
-    q_el --> q_eli : i
-    q_eli --> q_elif : f
-    q_elif --> [*] : no alfanum (acepta ELIF)
-```
+![Automata IF](../Images/IF_DFA.png)
 
 **Descripción:**
 - Desde q0, al leer `i` se inicia el camino hacia `if`.
@@ -815,17 +767,7 @@ stateDiagram-v2
 
 *Figura 5: AFD para la keyword `while`*
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> q0
-    q0 --> q1 : w
-    q1 --> q2 : h
-    q2 --> q3 : i
-    q3 --> q4 : l
-    q4 --> q5_acepta : e
-    q5_acepta --> [*] : no alfanum (acepta WHILE)
-```
+![Automata While](../Images/WHILE_DFA.png)
 
 **Descripción:** Cadena de estados lineal que reconoce `w` → `h` → `i` → `l` → `e`. Se acepta solo si el siguiente carácter no es alfanumérico (para distinguir `while` de `whileTrue` por ejemplo).
 
@@ -837,30 +779,7 @@ Este autómata reconoce los 7 operadores aritméticos, incluyendo los de dos car
 
 *Figura 6: AFD para operadores aritméticos*
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> q0
-
-    q0 --> qPlus : caracter +
-    qPlus --> [*] : acepta PLUS
-
-    q0 --> qMinus : caracter menos
-    qMinus --> [*] : acepta MINUS
-
-    q0 --> qStar : caracter asterisco
-    qStar --> [*] : otro (acepta TIMES)
-    qStar --> qPower : segundo asterisco
-    qPower --> [*] : acepta POWER
-
-    q0 --> qSlash : caracter slash
-    qSlash --> [*] : otro (acepta DIVIDE)
-    qSlash --> qFloor : segundo slash
-    qFloor --> [*] : acepta FLOORDIV
-
-    q0 --> qMod : caracter porciento
-    qMod --> [*] : acepta MOD
-```
+![Automata Operadores](../Images/OPERATORS_DFA.png)
 
 **Descripción:**
 - `+`, `-` y `%` son directos: un carácter → aceptar.
@@ -915,17 +834,17 @@ Las tablas de transición son la representación tabular de cada AFD. Cada fila 
 
 *Tabla 18: Transiciones del AFD combinado para if/else/elif*
 
-| Estado | `i` | `f` | `e` | `l` | `s` | no alfanum | otro alfanum |
-|--------|-----|-----|-----|-----|-----|-----------|-------------|
-| → q0 | q_i | — | q_e | — | — | — | — |
-| q_i | — | q_if | — | — | — | — | → NAME |
-| *q_if | — | — | — | — | — | acepta IF | → NAME |
-| q_e | — | — | — | q_el | — | — | → NAME |
-| q_el | q_eli | — | — | — | q_els | — | → NAME |
-| q_els | — | — | q_else | — | — | — | → NAME |
-| *q_else | — | — | — | — | — | acepta ELSE | → NAME |
-| q_eli | — | q_elif | — | — | — | — | → NAME |
-| *q_elif | — | — | — | — | — | acepta ELIF | → NAME |
+| Estado | i  | f  | e  | l  | s  | otro                          |
+|--------|----|----|----|----|----|-------------------------------|
+| → q0   | q1 | —  | q3 | —  | —  | —                             |
+| q1     | —  | q2 | —  | —  | —  | —                             |
+| * q2   | —  | —  | —  | —  | —  | acepta **IF** (si no es letra/dígito/_) |
+| q3     | —  | —  | —  | q4 | —  | —                             |
+| q4     | q7 | —  | —  | —  | q5 | —                             |
+| q5     | —  | —  | q6 | —  | —  | —                             |
+| * q6   | —  | —  | —  | —  | —  | acepta **ELSE** (si no es letra/dígito/_) |
+| q7     | —  | q8 | —  | —  | —  | —                             |
+| * q8   | —  | —  | —  | —  | —  | acepta **ELIF** (si no es letra/dígito/_) |
 
 **Nota:** Si en cualquier estado intermedio llega un carácter alfanumérico inesperado, el lexema completo se trata como un identificador (NAME), no como keyword.
 
@@ -946,15 +865,17 @@ Las tablas de transición son la representación tabular de cada AFD. Cada fila 
 
 *Tabla 20: Transiciones del AFD para operadores aritméticos*
 
-| Estado | `+` | `-` | `*` | `/` | `%` | otro |
-|--------|-----|-----|-----|-----|-----|------|
-| → q0 | *qPlus | *qMinus | qStar | qSlash | *qMod | — |
-| qStar | acepta TIMES | acepta TIMES | *qPower | acepta TIMES | acepta TIMES | acepta TIMES |
-| *qPower | — | — | — | — | — | acepta POWER |
-| qSlash | acepta DIVIDE | acepta DIVIDE | acepta DIVIDE | *qFloor | acepta DIVIDE | acepta DIVIDE |
-| *qFloor | — | — | — | — | — | acepta FLOORDIV |
 
-**Nota:** qStar y qSlash requieren lookahead de un carácter para decidir entre `*`/`**` y `/`/`//` respectivamente.
+| Estado | + | - | % | * | / | otro                              |
+|--------|---|---|---|---|---|-----------------------------------|
+| → q0   | q1| q2| q3| q4| q6| —                                 |
+| * q1   | — | — | — | — | — | acepta **PLUS** (`+`)             |
+| * q2   | — | — | — | — | — | acepta **MINUS** (`-`)            |
+| * q3   | — | — | — | — | — | acepta **MOD** (`%`)              |
+| * q4   | — | — | — | q5| — | acepta **MUL** (`*`) si no es `*` |
+| * q5   | — | — | — | — | — | acepta **POW** (`**`)             |
+| * q6   | — | — | — | — | q7| acepta **DIV** (`/`) si no es `/` |
+| * q7   | — | — | — | — | — | acepta **FLOORDIV** (`//`)        |
 
 ---
 
