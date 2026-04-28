@@ -1037,23 +1037,693 @@ z = 3.14
 
 ## 4. Implementación
 
-<!-- FASE 2 — Código del scanner -->
+Esta sección presenta el código completo del analizador léxico implementado en el archivo `triton_lexer.l` utilizando flex con C++. El archivo sigue la estructura estándar de tres secciones de flex, cada una explicada en detalle. La implementación es completamente trazable al análisis (Sección 2) y al diseño (Sección 3): cada regex de la Sección 2.3 aparece como una regla en la Sección 2 del archivo flex, y cada estructura de datos del diseño (Sección 3.3) se refleja directamente en las structs de C++.
+
+A continuación se presenta el printout completo del archivo `triton_lexer.l`, seguido de la explicación detallada de cada sección.
+
+#### Printout completo del archivo `triton_lexer.l`
+
+```cpp
+%{
+/*=============================================================
+ * Triton GPU Kernel - Analizador Lexico
+ * TC3002B - Compiladores
+ * 
+ * Descripcion: Scanner para el lenguaje Triton GPU Kernel
+ *              implementado con flex y compilado con g++.
+ *
+ * Estructura del archivo:
+ *   Seccion 1 (%{ ... %})  - Definiciones de C++
+ *   Seccion 2 (%% ... %%)  - Reglas (regex -> acciones)
+ *   Seccion 3 (despues %%) - Codigo de usuario (funciones, main)
+ *=============================================================*/
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <iomanip>
+#include <cstring>
+
+using namespace std;
+
+enum TokenID {
+    /* Keywords */
+    TOK_DEF = 100, TOK_RETURN = 101, TOK_IF = 102, TOK_ELSE = 103,
+    TOK_ELIF = 104, TOK_FOR = 105, TOK_WHILE = 106, TOK_IN = 107,
+    TOK_IS = 108, TOK_AND = 109, TOK_OR = 110, TOK_NOT = 111,
+    TOK_TRUE = 112, TOK_FALSE = 113, TOK_NONE = 114, TOK_PASS = 115,
+    TOK_BREAK = 116, TOK_CONTINUE = 117,
+    /* Identificadores y literales */
+    TOK_NAME = 200, TOK_NUMBER = 201, TOK_STRING = 202,
+    /* Operadores */
+    TOK_PLUS = 300, TOK_MINUS = 301, TOK_TIMES = 302, TOK_DIVIDE = 303,
+    TOK_FLOORDIV = 304, TOK_MOD = 305, TOK_POWER = 306,
+    TOK_LT = 307, TOK_GT = 308, TOK_LE = 309, TOK_GE = 310,
+    TOK_EQ = 311, TOK_NE = 312, TOK_ASSIGN = 313,
+    TOK_PLUSEQ = 314, TOK_MINUSEQ = 315, TOK_TIMESEQ = 316, TOK_DIVEQ = 317,
+    /* Delimitadores */
+    TOK_LPAREN = 400, TOK_RPAREN = 401, TOK_LBRACKET = 402, TOK_RBRACKET = 403,
+    TOK_LBRACE = 404, TOK_RBRACE = 405, TOK_COMMA = 406, TOK_COLON = 407,
+    TOK_DOT = 408, TOK_AT = 409, TOK_ARROW = 410, TOK_TILDE = 411,
+    TOK_AMPERSAND = 412, TOK_PIPE = 413, TOK_CARET = 414,
+    TOK_LSHIFT = 415, TOK_RSHIFT = 416,
+    /* Indentacion */
+    TOK_NEWLINE = 500, TOK_INDENT = 501, TOK_DEDENT = 502,
+    /* Error */
+    TOK_ERROR = 999
+};
+
+struct TokenEntry { int id; string lexeme; string token_name; int line; };
+struct Symbol { string token; string identifier; string value; string error; };
+
+vector<TokenEntry> token_list;
+vector<Symbol>     symbol_table;
+int line_num = 1;
+
+string token_id_to_name(int id);
+void   add_token(int id, const char *lexeme);
+void   add_symbol(const string &token, const string &identifier,
+                  const string &value, const string &error);
+void   print_tokens();
+void   print_symbol_table();
+%}
+
+%option noyywrap
+
+DIGIT      [0-9]
+LETTER     [a-zA-Z_]
+ID         {LETTER}({LETTER}|{DIGIT})*
+INTEGER    {DIGIT}+
+FLOAT      {DIGIT}+"."{DIGIT}+
+STRLIT     \"([^"\\\n]|\\.)*\"
+STRLIT2    \'([^'\\\n]|\\.)*\'
+COMMENT    #[^\n]*
+WS         [ \t]+
+
+%%
+
+"def"       { add_token(TOK_DEF, yytext);       return TOK_DEF; }
+"return"    { add_token(TOK_RETURN, yytext);     return TOK_RETURN; }
+"if"        { add_token(TOK_IF, yytext);         return TOK_IF; }
+"else"      { add_token(TOK_ELSE, yytext);       return TOK_ELSE; }
+"elif"      { add_token(TOK_ELIF, yytext);       return TOK_ELIF; }
+"for"       { add_token(TOK_FOR, yytext);        return TOK_FOR; }
+"while"     { add_token(TOK_WHILE, yytext);      return TOK_WHILE; }
+"in"        { add_token(TOK_IN, yytext);         return TOK_IN; }
+"is"        { add_token(TOK_IS, yytext);         return TOK_IS; }
+"and"       { add_token(TOK_AND, yytext);        return TOK_AND; }
+"or"        { add_token(TOK_OR, yytext);         return TOK_OR; }
+"not"       { add_token(TOK_NOT, yytext);        return TOK_NOT; }
+"True"      { add_token(TOK_TRUE, yytext);       return TOK_TRUE; }
+"False"     { add_token(TOK_FALSE, yytext);      return TOK_FALSE; }
+"None"      { add_token(TOK_NONE, yytext);       return TOK_NONE; }
+"pass"      { add_token(TOK_PASS, yytext);       return TOK_PASS; }
+"break"     { add_token(TOK_BREAK, yytext);      return TOK_BREAK; }
+"continue"  { add_token(TOK_CONTINUE, yytext);   return TOK_CONTINUE; }
+
+"**"        { add_token(TOK_POWER, yytext);      return TOK_POWER; }
+"//"        { add_token(TOK_FLOORDIV, yytext);   return TOK_FLOORDIV; }
+"<="        { add_token(TOK_LE, yytext);         return TOK_LE; }
+">="        { add_token(TOK_GE, yytext);         return TOK_GE; }
+"=="        { add_token(TOK_EQ, yytext);         return TOK_EQ; }
+"!="        { add_token(TOK_NE, yytext);         return TOK_NE; }
+"+="        { add_token(TOK_PLUSEQ, yytext);     return TOK_PLUSEQ; }
+"-="        { add_token(TOK_MINUSEQ, yytext);    return TOK_MINUSEQ; }
+"*="        { add_token(TOK_TIMESEQ, yytext);    return TOK_TIMESEQ; }
+"/="        { add_token(TOK_DIVEQ, yytext);      return TOK_DIVEQ; }
+"->"        { add_token(TOK_ARROW, yytext);      return TOK_ARROW; }
+"<<"        { add_token(TOK_LSHIFT, yytext);     return TOK_LSHIFT; }
+">>"        { add_token(TOK_RSHIFT, yytext);     return TOK_RSHIFT; }
+
+"+"         { add_token(TOK_PLUS, yytext);       return TOK_PLUS; }
+"-"         { add_token(TOK_MINUS, yytext);      return TOK_MINUS; }
+"*"         { add_token(TOK_TIMES, yytext);      return TOK_TIMES; }
+"/"         { add_token(TOK_DIVIDE, yytext);     return TOK_DIVIDE; }
+"%"         { add_token(TOK_MOD, yytext);        return TOK_MOD; }
+"<"         { add_token(TOK_LT, yytext);         return TOK_LT; }
+">"         { add_token(TOK_GT, yytext);         return TOK_GT; }
+"="         { add_token(TOK_ASSIGN, yytext);     return TOK_ASSIGN; }
+
+"("         { add_token(TOK_LPAREN, yytext);     return TOK_LPAREN; }
+")"         { add_token(TOK_RPAREN, yytext);     return TOK_RPAREN; }
+"["         { add_token(TOK_LBRACKET, yytext);   return TOK_LBRACKET; }
+"]"         { add_token(TOK_RBRACKET, yytext);   return TOK_RBRACKET; }
+"{"         { add_token(TOK_LBRACE, yytext);     return TOK_LBRACE; }
+"}"         { add_token(TOK_RBRACE, yytext);     return TOK_RBRACE; }
+","         { add_token(TOK_COMMA, yytext);      return TOK_COMMA; }
+":"         { add_token(TOK_COLON, yytext);      return TOK_COLON; }
+"."         { add_token(TOK_DOT, yytext);        return TOK_DOT; }
+"@"         { add_token(TOK_AT, yytext);         return TOK_AT; }
+"~"         { add_token(TOK_TILDE, yytext);      return TOK_TILDE; }
+"&"         { add_token(TOK_AMPERSAND, yytext);  return TOK_AMPERSAND; }
+"|"         { add_token(TOK_PIPE, yytext);       return TOK_PIPE; }
+"^"         { add_token(TOK_CARET, yytext);      return TOK_CARET; }
+
+{ID}        { add_token(TOK_NAME, yytext);
+              add_symbol("NAME", yytext, "---", "---"); return TOK_NAME; }
+
+{FLOAT}     { add_token(TOK_NUMBER, yytext);
+              add_symbol("NUMBER", "(literal)", yytext, "---"); return TOK_NUMBER; }
+{INTEGER}   { add_token(TOK_NUMBER, yytext);
+              add_symbol("NUMBER", "(literal)", yytext, "---"); return TOK_NUMBER; }
+
+{STRLIT}    { add_token(TOK_STRING, yytext);
+              add_symbol("STRING", "(literal)", yytext, "---"); return TOK_STRING; }
+{STRLIT2}   { add_token(TOK_STRING, yytext);
+              add_symbol("STRING", "(literal)", yytext, "---"); return TOK_STRING; }
+
+\"[^\"\n]*$ { cerr << "Error lexico: cadena no terminada en linea "
+                   << line_num << endl;
+              add_symbol("STRING","(literal)",yytext,
+                  "Cadena no terminada: falta comilla de cierre");
+              add_token(TOK_ERROR, yytext); }
+\'[^\'\n]*$ { cerr << "Error lexico: cadena no terminada en linea "
+                   << line_num << endl;
+              add_symbol("STRING","(literal)",yytext,
+                  "Cadena no terminada: falta comilla de cierre");
+              add_token(TOK_ERROR, yytext); }
+
+{COMMENT}   { /* Ignorar comentarios */ }
+\n          { line_num++; add_token(TOK_NEWLINE, "\\n"); }
+{WS}        { /* Ignorar espacios */ }
+.           { cerr << "Error lexico: caracter invalido '"
+                   << yytext << "' en linea " << line_num << endl;
+              add_symbol("(desconocido)",yytext,"---",
+                  "Caracter invalido/no reconocido");
+              add_token(TOK_ERROR, yytext); }
+
+%%
+
+string token_id_to_name(int id) {
+    switch(id) {
+        case TOK_DEF: return "DEF"; case TOK_RETURN: return "RETURN";
+        case TOK_IF: return "IF"; case TOK_ELSE: return "ELSE";
+        case TOK_ELIF: return "ELIF"; case TOK_FOR: return "FOR";
+        case TOK_WHILE: return "WHILE"; case TOK_IN: return "IN";
+        case TOK_IS: return "IS"; case TOK_AND: return "AND";
+        case TOK_OR: return "OR"; case TOK_NOT: return "NOT";
+        case TOK_TRUE: return "TRUE"; case TOK_FALSE: return "FALSE";
+        case TOK_NONE: return "NONE"; case TOK_PASS: return "PASS";
+        case TOK_BREAK: return "BREAK"; case TOK_CONTINUE: return "CONTINUE";
+        case TOK_NAME: return "NAME"; case TOK_NUMBER: return "NUMBER";
+        case TOK_STRING: return "STRING";
+        case TOK_PLUS: return "PLUS"; case TOK_MINUS: return "MINUS";
+        case TOK_TIMES: return "TIMES"; case TOK_DIVIDE: return "DIVIDE";
+        case TOK_FLOORDIV: return "FLOORDIV"; case TOK_MOD: return "MOD";
+        case TOK_POWER: return "POWER";
+        case TOK_LT: return "LT"; case TOK_GT: return "GT";
+        case TOK_LE: return "LE"; case TOK_GE: return "GE";
+        case TOK_EQ: return "EQ"; case TOK_NE: return "NE";
+        case TOK_ASSIGN: return "ASSIGN";
+        case TOK_PLUSEQ: return "PLUSEQ"; case TOK_MINUSEQ: return "MINUSEQ";
+        case TOK_TIMESEQ: return "TIMESEQ"; case TOK_DIVEQ: return "DIVEQ";
+        case TOK_LPAREN: return "LPAREN"; case TOK_RPAREN: return "RPAREN";
+        case TOK_LBRACKET: return "LBRACKET"; case TOK_RBRACKET: return "RBRACKET";
+        case TOK_LBRACE: return "LBRACE"; case TOK_RBRACE: return "RBRACE";
+        case TOK_COMMA: return "COMMA"; case TOK_COLON: return "COLON";
+        case TOK_DOT: return "DOT"; case TOK_AT: return "AT";
+        case TOK_ARROW: return "ARROW"; case TOK_TILDE: return "TILDE";
+        case TOK_AMPERSAND: return "AMPERSAND"; case TOK_PIPE: return "PIPE";
+        case TOK_CARET: return "CARET";
+        case TOK_LSHIFT: return "LSHIFT"; case TOK_RSHIFT: return "RSHIFT";
+        case TOK_NEWLINE: return "NEWLINE";
+        case TOK_INDENT: return "INDENT"; case TOK_DEDENT: return "DEDENT";
+        case TOK_ERROR: return "ERROR";
+        default: return "UNKNOWN";
+    }
+}
+
+void add_token(int id, const char *lexeme) {
+    TokenEntry entry;
+    entry.id = id; entry.lexeme = string(lexeme);
+    entry.token_name = token_id_to_name(id); entry.line = line_num;
+    token_list.push_back(entry);
+}
+
+void add_symbol(const string &token, const string &identifier,
+                const string &value, const string &error) {
+    for (size_t i = 0; i < symbol_table.size(); i++) {
+        if (symbol_table[i].identifier == identifier &&
+            symbol_table[i].token == token) return;
+    }
+    Symbol sym;
+    sym.token = token; sym.identifier = identifier;
+    sym.value = value; sym.error = error;
+    symbol_table.push_back(sym);
+}
+
+void print_tokens() {
+    cout << endl << "== SECUENCIA DE TOKENS ==" << endl;
+    cout << left << setw(10) << "TokenID" << setw(15) << "Token"
+         << setw(25) << "Lexema" << setw(8) << "Linea" << endl;
+    for (size_t i = 0; i < token_list.size(); i++) {
+        string lex = token_list[i].lexeme;
+        if (lex == "\n") lex = "\\n";
+        cout << left << setw(10) << token_list[i].id
+             << setw(15) << token_list[i].token_name
+             << setw(25) << lex << setw(8) << token_list[i].line << endl;
+    }
+    cout << "Total: " << token_list.size() << endl;
+}
+
+void print_symbol_table() {
+    cout << endl << "== TABLA DE SIMBOLOS ==" << endl;
+    cout << left << setw(14) << "Token" << setw(22) << "Identificador"
+         << setw(18) << "Valor" << setw(45) << "Error" << endl;
+    for (size_t i = 0; i < symbol_table.size(); i++) {
+        cout << left << setw(14) << symbol_table[i].token
+             << setw(22) << symbol_table[i].identifier
+             << setw(18) << symbol_table[i].value
+             << setw(45) << symbol_table[i].error << endl;
+    }
+    cout << "Total: " << symbol_table.size() << endl;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc > 1) {
+        FILE *f = fopen(argv[1], "r");
+        if (!f) { cerr << "Error: No se pudo abrir '" << argv[1] << "'" << endl; return 1; }
+        yyin = f;
+        cout << "Analizando: " << argv[1] << endl;
+    } else { yyin = stdin; }
+    while (yylex() != 0);
+    print_tokens();
+    print_symbol_table();
+    if (argc > 1) fclose(yyin);
+    return 0;
+}
+```
+
+A continuación se explica cada sección del archivo en detalle.
 
 ### 4.1 Sección de Definiciones
 
-*POR COMPLETAR*
+La primera sección del archivo `.l` contiene el código C++ que se copia directamente al archivo generado, seguido de las opciones de flex y las definiciones de patrones reutilizables.
+
+#### 4.1.1 Bibliotecas incluidas
+
+```cpp
+#include <iostream>   // cout, cerr, endl — salida estándar y de errores
+#include <string>     // string — para manejar lexemas y nombres de tokens
+#include <vector>     // vector<> — lista dinámica para tokens y símbolos
+#include <iomanip>    // setw(), left — formato tabular de la salida
+#include <cstring>    // compatibilidad con funciones C de strings
+```
+
+Cada biblioteca cumple una función específica. Se usa `iostream` en lugar de `stdio.h` para aprovechar `cout` (salida normal) y `cerr` (errores), que van a canales separados del sistema operativo.
+
+#### 4.1.2 Enumeración de Token IDs
+
+```cpp
+enum TokenID {
+    /* Keywords (100-117) */
+    TOK_DEF = 100, TOK_RETURN = 101, TOK_IF = 102, ...
+    /* Identificadores y literales (200-202) */
+    TOK_NAME = 200, TOK_NUMBER = 201, TOK_STRING = 202,
+    /* Operadores (300-317) */
+    TOK_PLUS = 300, TOK_MINUS = 301, ...
+    /* Delimitadores (400-416) */
+    TOK_LPAREN = 400, TOK_RPAREN = 401, ...
+    /* Indentación (500-502) */
+    TOK_NEWLINE = 500, TOK_INDENT = 501, TOK_DEDENT = 502,
+    /* Error */
+    TOK_ERROR = 999
+};
+```
+
+Se utiliza un `enum` de C++ en lugar de `#define` porque proporciona mayor seguridad de tipos: el compilador puede advertir si se usa un valor inválido. Los rangos numéricos (100s, 200s, 300s, 400s, 500s) corresponden directamente a la tabla de Token IDs definida en la Sección 2.2.
+
+#### 4.1.3 Estructuras de datos
+
+**`TokenEntry`** — almacena cada token reconocido en la secuencia de salida:
+
+```cpp
+struct TokenEntry {
+    int    id;          // Token ID numérico (ej: 102)
+    string lexeme;      // Texto del código fuente (ej: "if")
+    string token_name;  // Nombre legible (ej: "IF")
+    int    line;        // Número de línea donde apareció
+};
+```
+
+**`Symbol`** — almacena cada entrada de la tabla de símbolos:
+
+```cpp
+struct Symbol {
+    string token;       // Tipo: "NAME", "NUMBER", "STRING"
+    string identifier;  // El lexema o "(literal)"
+    string value;       // Valor asociado o "---"
+    string error;       // Mensaje de error o "---"
+};
+```
+
+Estas estructuras corresponden directamente al diseño de la Sección 3.3.1 (Tabla 21).
+
+#### 4.1.4 Variables globales
+
+```cpp
+vector<TokenEntry> token_list;    // Secuencia de tokens (salida 1)
+vector<Symbol>     symbol_table;  // Tabla de símbolos (salida 2)
+int line_num = 1;                 // Contador de línea actual
+```
+
+Se utilizan `vector` dinámicos en lugar de arreglos estáticos para evitar límites arbitrarios de tamaño. El contador `line_num` se incrementa con cada `\n` para reportar la línea correcta en los errores.
+
+#### 4.1.5 Opciones de flex
+
+```
+%option noyywrap
+```
+
+Esta opción le indica a flex que no se necesita la función `yywrap()`, que normalmente se usa para encadenar múltiples archivos de entrada. Como nuestro scanner solo procesa un archivo, esta opción simplifica el código.
+
+#### 4.1.6 Definiciones de patrones
+
+```
+DIGIT      [0-9]
+LETTER     [a-zA-Z_]
+ID         {LETTER}({LETTER}|{DIGIT})*
+INTEGER    {DIGIT}+
+FLOAT      {DIGIT}+"."{DIGIT}+
+STRLIT     \"([^"\\\n]|\\.)*\"
+STRLIT2    \'([^'\\\n]|\\.)*\'
+COMMENT    #[^\n]*
+WS         [ \t]+
+```
+
+Cada definición es un atajo que se puede usar en las reglas con la sintaxis `{NOMBRE}`. Las expresiones regulares corresponden exactamente a las especificadas en la Sección 2.3:
+
+| Patrón flex | Sección del análisis | Descripción |
+|-------------|---------------------|-------------|
+| `{ID}` | 2.3.2 | Identificadores |
+| `{FLOAT}` | 2.3.3 | Números flotantes |
+| `{INTEGER}` | 2.3.3 | Números enteros |
+| `{STRLIT}` | 2.3.4 | Cadenas con comillas dobles |
+| `{STRLIT2}` | 2.3.4 | Cadenas con comillas simples |
+| `{COMMENT}` | 2.3.8 | Comentarios |
+| `{WS}` | 2.3.9 | Espacios en blanco |
 
 ### 4.2 Sección de Reglas
 
-*POR COMPLETAR*
+La sección de reglas contiene pares de `patrón { acción }`. El orden de las reglas es crítico debido a las reglas de prioridad de flex (longest match y first match). A continuación se explica cada grupo de reglas en el orden en que aparecen.
+
+#### 4.2.1 Grupo 1: Keywords (18 reglas)
+
+```cpp
+"def"       { add_token(TOK_DEF, yytext);       return TOK_DEF; }
+"return"    { add_token(TOK_RETURN, yytext);     return TOK_RETURN; }
+"if"        { add_token(TOK_IF, yytext);         return TOK_IF; }
+...
+"continue"  { add_token(TOK_CONTINUE, yytext);   return TOK_CONTINUE; }
+```
+
+Las 18 keywords aparecen **antes** que la regla de identificadores `{ID}`. Esto es necesario porque `"if"` y `{ID}` ambos coinciden con la cadena `if` con la misma longitud (2 caracteres). La regla de *first match* de flex da prioridad a la regla que aparece primero. Si `{ID}` estuviera antes, `if` se clasificaría como `TOK_NAME` en lugar de `TOK_IF`.
+
+Cada regla llama a `add_token()` para registrar el token en la secuencia, y `return` devuelve el Token ID al ciclo principal en `main()`. Las keywords no se registran en la tabla de símbolos porque son elementos fijos del lenguaje, no datos del usuario.
+
+#### 4.2.2 Grupo 2: Operadores de 2 caracteres (10 reglas)
+
+```cpp
+"**"        { add_token(TOK_POWER, yytext);      return TOK_POWER; }
+"//"        { add_token(TOK_FLOORDIV, yytext);   return TOK_FLOORDIV; }
+"<="        { add_token(TOK_LE, yytext);         return TOK_LE; }
+...
+"/="        { add_token(TOK_DIVEQ, yytext);      return TOK_DIVEQ; }
+```
+
+Los operadores de 2 caracteres se definen **antes** que los de 1 carácter. Aunque flex usa *longest match* (prefiere la coincidencia más larga), definirlos primero asegura compatibilidad. Ejemplo: al leer `**`, flex elige `"**"` (2 chars) sobre `"*"` (1 char).
+
+#### 4.2.3 Grupo 3: Delimitadores de 2 caracteres (3 reglas)
+
+```cpp
+"->"        { add_token(TOK_ARROW, yytext);      return TOK_ARROW; }
+"<<"        { add_token(TOK_LSHIFT, yytext);     return TOK_LSHIFT; }
+">>"        { add_token(TOK_RSHIFT, yytext);     return TOK_RSHIFT; }
+```
+
+Mismo principio: `->` debe reconocerse antes que `-` y `>` por separado.
+
+#### 4.2.4 Grupos 4 y 5: Operadores y delimitadores de 1 carácter (22 reglas)
+
+```cpp
+"+"   { add_token(TOK_PLUS, yytext);      return TOK_PLUS; }
+"-"   { add_token(TOK_MINUS, yytext);     return TOK_MINUS; }
+...
+"("   { add_token(TOK_LPAREN, yytext);    return TOK_LPAREN; }
+")"   { add_token(TOK_RPAREN, yytext);    return TOK_RPAREN; }
+...
+```
+
+Son cadenas literales de un solo carácter. Cada una mapea directamente a un Token ID.
+
+#### 4.2.5 Grupo 6: Identificadores
+
+```cpp
+{ID}        {
+                add_token(TOK_NAME, yytext);
+                add_symbol("NAME", yytext, "---", "---");
+                return TOK_NAME;
+            }
+```
+
+Este patrón usa la definición `{ID}` que se expande a `[a-zA-Z_]([a-zA-Z_]|[0-9])*`. Solo se alcanza si el lexema no coincidió con ninguna keyword (porque las keywords están antes). Además de registrar el token, se llama a `add_symbol()` para agregar el identificador a la tabla de símbolos.
+
+#### 4.2.6 Grupo 7: Literales numéricos
+
+```cpp
+{FLOAT}     {
+                add_token(TOK_NUMBER, yytext);
+                add_symbol("NUMBER", "(literal)", yytext, "---");
+                return TOK_NUMBER;
+            }
+
+{INTEGER}   {
+                add_token(TOK_NUMBER, yytext);
+                add_symbol("NUMBER", "(literal)", yytext, "---");
+                return TOK_NUMBER;
+            }
+```
+
+La regla de flotante `{FLOAT}` aparece **antes** que la de entero `{INTEGER}` para que flex prefiera `3.14` como un solo token flotante en vez de el entero `3`, el punto `.`, y el entero `14`. Ambos se registran como `TOK_NUMBER` con Token ID 201, y se agregan a la tabla de símbolos con el valor numérico como string.
+
+#### 4.2.7 Grupo 8: Literales de cadena
+
+```cpp
+{STRLIT}    {
+                add_token(TOK_STRING, yytext);
+                add_symbol("STRING", "(literal)", yytext, "---");
+                return TOK_STRING;
+            }
+
+{STRLIT2}   { /* Mismo patrón para comillas simples */ }
+```
+
+`{STRLIT}` reconoce cadenas con comillas dobles y `{STRLIT2}` con comillas simples. El patrón `\"([^"\\\n]|\\.)*\"` acepta cualquier carácter dentro de las comillas excepto `"`, `\` y `\n`, con soporte para secuencias de escape (`\\.`).
+
+#### 4.2.8 Grupo 9: Cadena no terminada (error)
+
+```cpp
+\"[^\"\n]*$ {
+                cerr << "Error lexico: cadena no terminada en linea "
+                     << line_num << endl;
+                add_symbol("STRING", "(literal)", yytext,
+                    "Cadena no terminada: falta comilla de cierre");
+                add_token(TOK_ERROR, yytext);
+            }
+```
+
+Este patrón captura una comilla de apertura que llega al fin de línea (`$`) sin comilla de cierre. Emite el error a `stderr`, lo registra en la tabla de símbolos con el mensaje de error, y genera un `TOK_ERROR`. Corresponde al Error 2 de la Sección 2.4.3.
+
+#### 4.2.9 Grupo 10: Comentarios
+
+```cpp
+{COMMENT}   { /* Ignorar: consume desde # hasta fin de linea */ }
+```
+
+La acción está vacía: flex consume el texto pero no hace nada. No se genera token ni se registra en la tabla de símbolos.
+
+#### 4.2.10 Grupo 11: Nueva línea
+
+```cpp
+\n          {
+                line_num++;
+                add_token(TOK_NEWLINE, "\\n");
+            }
+```
+
+Se incrementa el contador de línea y se emite un token `TOK_NEWLINE`. El incremento es esencial para que los mensajes de error reporten la línea correcta.
+
+#### 4.2.11 Grupo 12: Espacios en blanco
+
+```cpp
+{WS}        { /* Ignorar espacios y tabuladores */ }
+```
+
+Acción vacía, igual que comentarios.
+
+#### 4.2.12 Grupo 13: Carácter no reconocido (catch-all)
+
+```cpp
+.           {
+                cerr << "Error lexico: caracter invalido '"
+                     << yytext << "' en linea " << line_num << endl;
+                add_symbol("(desconocido)", yytext, "---",
+                    "Caracter invalido/no reconocido");
+                add_token(TOK_ERROR, yytext);
+            }
+```
+
+Esta es la **última regla** del archivo. El punto `.` coincide con cualquier carácter que no fue capturado por ninguna regla anterior. Solo se activa para caracteres fuera del alfabeto de Triton (como `$`, `¿`, etc.). Corresponde al Error 1 de la Sección 2.4.2. El scanner no se detiene: registra el error y continúa con el siguiente carácter.
 
 ### 4.3 Sección de Código de Usuario
 
-*POR COMPLETAR*
+Esta sección contiene las funciones auxiliares y la función `main()`. Todo el código es C++ estándar.
+
+#### 4.3.1 Función `token_id_to_name()`
+
+```cpp
+string token_id_to_name(int id) {
+    switch(id) {
+        case TOK_DEF:    return "DEF";
+        case TOK_IF:     return "IF";
+        case TOK_NAME:   return "NAME";
+        ...
+        default:         return "UNKNOWN";
+    }
+}
+```
+
+Convierte un Token ID numérico a su nombre legible como string. Se usa en `add_token()` para que la salida muestre `"IF"` en lugar de `102`. Cubre los 60 tokens definidos en el `enum`.
+
+#### 4.3.2 Función `add_token()`
+
+```cpp
+void add_token(int id, const char *lexeme) {
+    TokenEntry entry;
+    entry.id         = id;
+    entry.lexeme     = string(lexeme);
+    entry.token_name = token_id_to_name(id);
+    entry.line       = line_num;
+    token_list.push_back(entry);
+}
+```
+
+Crea un registro `TokenEntry` con los 4 campos (ID, lexema, nombre, línea) y lo agrega al final del vector `token_list`. Se llama desde cada regla de la Sección 2. El parámetro `lexeme` recibe `yytext` (el texto que coincidió con el patrón de flex).
+
+#### 4.3.3 Función `add_symbol()`
+
+```cpp
+void add_symbol(const string &token, const string &identifier,
+                const string &value, const string &error) {
+    for (size_t i = 0; i < symbol_table.size(); i++) {
+        if (symbol_table[i].identifier == identifier &&
+            symbol_table[i].token == token) {
+            return;  // Ya existe, no duplicar
+        }
+    }
+    Symbol sym;
+    sym.token      = token;
+    sym.identifier = identifier;
+    sym.value      = value;
+    sym.error      = error;
+    symbol_table.push_back(sym);
+}
+```
+
+Implementa el algoritmo de inserción diseñado en la Sección 3.3.2. Primero recorre la tabla con búsqueda lineal para verificar que no exista un duplicado (mismo token + mismo identificador). Si no existe, crea un nuevo registro y lo agrega. Solo se llama para `TOK_NAME`, `TOK_NUMBER`, `TOK_STRING` y `TOK_ERROR`.
+
+#### 4.3.4 Función `print_tokens()`
+
+```cpp
+void print_tokens() {
+    cout << "SECUENCIA DE TOKENS" << endl;
+    cout << "TokenID  Token  Lexema  Linea" << endl;
+    for (size_t i = 0; i < token_list.size(); i++) {
+        cout << token_list[i].id << " "
+             << token_list[i].token_name << " "
+             << token_list[i].lexeme << " "
+             << token_list[i].line << endl;
+    }
+    cout << "Total de tokens: " << token_list.size() << endl;
+}
+```
+
+Recorre el vector `token_list` e imprime cada token en formato tabular usando `setw()` e `iomanip` para alinear las columnas. Reemplaza `\n` literal por el texto `\\n` para que sea visible en la salida.
+
+#### 4.3.5 Función `print_symbol_table()`
+
+```cpp
+void print_symbol_table() {
+    cout << "TABLA DE SIMBOLOS" << endl;
+    cout << "Token  Identificador  Valor  Error" << endl;
+    for (size_t i = 0; i < symbol_table.size(); i++) {
+        cout << symbol_table[i].token << " "
+             << symbol_table[i].identifier << " "
+             << symbol_table[i].value << " "
+             << symbol_table[i].error << endl;
+    }
+    cout << "Total de simbolos: " << symbol_table.size() << endl;
+}
+```
+
+Misma lógica que `print_tokens()` pero para la tabla de símbolos.
+
+#### 4.3.6 Función `main()`
+
+```cpp
+int main(int argc, char *argv[]) {
+    if (argc > 1) {
+        FILE *f = fopen(argv[1], "r");
+        if (!f) {
+            cerr << "Error: No se pudo abrir '" << argv[1] << "'" << endl;
+            return 1;
+        }
+        yyin = f;
+    } else {
+        yyin = stdin;
+    }
+
+    while (yylex() != 0);  // Ejecutar scanner hasta EOF
+
+    print_tokens();
+    print_symbol_table();
+
+    if (argc > 1) fclose(yyin);
+    return 0;
+}
+```
+
+El flujo de ejecución es:
+1. Si se proporcionó un archivo como argumento, se abre y se asigna a `yyin` (variable de flex que indica la fuente de entrada).
+2. Si no hay argumento, se lee de la entrada estándar (`stdin`).
+3. El ciclo `while (yylex() != 0)` llama a `yylex()` repetidamente. Cada llamada busca el siguiente token, ejecuta su acción, y retorna el Token ID. Cuando llega a EOF, retorna 0 y el ciclo termina.
+4. Se imprimen la secuencia de tokens y la tabla de símbolos.
+5. Se cierra el archivo si se abrió uno.
 
 ### 4.4 Compilación y Ejecución
 
-*POR COMPLETAR*
+El scanner se compila en dos pasos:
+
+```bash
+# Paso 1: flex convierte el .l a código C++
+flex -o lex.yy.cpp triton_lexer.l
+
+# Paso 2: g++ compila el C++ generado a ejecutable
+g++ -std=c++17 -o triton_lexer lex.yy.cpp -ll
+```
+
+| Comando | Entrada | Salida | Qué hace |
+|---------|---------|--------|----------|
+| `flex -o lex.yy.cpp triton_lexer.l` | `triton_lexer.l` | `lex.yy.cpp` | Convierte las reglas flex y el código C++ en un archivo C++ completo con el AFD optimizado |
+| `g++ -std=c++17 -o triton_lexer lex.yy.cpp -ll` | `lex.yy.cpp` | `triton_lexer` | Compila el C++ y enlaza con la biblioteca de flex (`-ll`) |
+
+Para ejecutar el scanner:
+
+```bash
+./triton_lexer <archivo_fuente>
+```
+
+El scanner lee el archivo fuente, imprime la secuencia de tokens a `stdout` y los errores a `stderr`.
 
 ---
 
