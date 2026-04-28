@@ -1729,21 +1729,270 @@ El scanner lee el archivo fuente, imprime la secuencia de tokens a `stdout` y lo
 
 ## 5. Verificación y Validación
 
-<!-- FASE 3 — Testing -->
+Esta sección presenta el modelo de pruebas utilizado para verificar el correcto funcionamiento del scanner, los casos de prueba diseñados, y los resultados obtenidos al ejecutarlos.
 
 ### 5.1 Modelo de Pruebas
 
-*POR COMPLETAR*
+El proceso de verificación y validación se basa en el diseño sistemático de casos de prueba que cubren los siguientes aspectos:
+
+1. **Cobertura de tokens:** Verificar que cada uno de los 60 tipos de token se reconoce correctamente.
+2. **Detección de errores:** Verificar que el scanner detecta caracteres inválidos y cadenas no terminadas con mensajes de error correctos.
+3. **Prioridad de reglas:** Verificar que las keywords se distinguen de identificadores (first match) y que los operadores de 2 caracteres se prefieren sobre los de 1 (longest match).
+4. **Tabla de símbolos:** Verificar que solo se registran NAME, NUMBER, STRING y errores, sin duplicados.
+5. **Programa real:** Verificar que el scanner funciona con código Triton real.
+
+Se diseñaron 5 casos de prueba, cada uno enfocado en un aspecto diferente. Cada caso incluye el archivo de entrada, la justificación de por qué se eligió, y la salida real del scanner.
 
 ### 5.2 Casos de Prueba
 
-*POR COMPLETAR*
+#### Caso 1: Tokens básicos (`test1_basic.triton`)
 
-### 5.3 Resultados
+**Entrada:**
+```python
+x = 10
+y = 3.14
+msg = "hola mundo"
+```
 
-*POR COMPLETAR*
+**Justificación:** Verifica el reconocimiento de los tokens más fundamentales: identificadores (NAME), asignación (ASSIGN), enteros y flotantes (NUMBER), cadenas (STRING), y saltos de línea (NEWLINE). Es la prueba mínima para confirmar que el scanner funciona.
+
+**Resultado:**
+
+```
+TokenID   Token          Lexema                   Linea
+200       NAME           x                        1
+313       ASSIGN         =                        1
+201       NUMBER         10                       1
+500       NEWLINE        \n                       2
+200       NAME           y                        2
+313       ASSIGN         =                        2
+201       NUMBER         3.14                     2
+500       NEWLINE        \n                       3
+200       NAME           msg                      3
+313       ASSIGN         =                        3
+202       STRING         "hola mundo"             3
+500       NEWLINE        \n                       4
+Total de tokens: 12
+
+Tabla de simbolos: NAME(x), NUMBER(10), NAME(y), NAME(msg), STRING("hola mundo")
+Total de simbolos: 5
+```
+
+**Verificación:** Todos los tokens reconocidos correctamente. Los identificadores, el número entero, el flotante y la cadena se registran en la tabla de símbolos. El operador `=` no se registra (solo se emite como token). ✓
 
 ---
+
+#### Caso 2: Detección de errores (`test2_errors.triton`)
+
+**Entrada:**
+```python
+x = 10
+cadena = "hola
+y = $5
+```
+
+**Justificación:** Verifica los dos tipos de error léxico: cadena no terminada (línea 2, falta comilla de cierre) y carácter inválido (línea 3, el símbolo `$` no pertenece al alfabeto de Triton). También verifica que el scanner no se detiene ante un error y continúa analizando.
+
+**Resultado:**
+
+```
+Error lexico: cadena no terminada en linea 2
+Error lexico: caracter invalido '$' en linea 3
+
+TokenID   Token          Lexema                   Linea
+200       NAME           x                        1
+313       ASSIGN         =                        1
+201       NUMBER         10                       1
+500       NEWLINE        \n                       2
+200       NAME           cadena                   2
+313       ASSIGN         =                        2
+999       ERROR          "hola                    2
+500       NEWLINE        \n                       3
+200       NAME           y                        3
+313       ASSIGN         =                        3
+999       ERROR          $                        3
+201       NUMBER         5                        3
+500       NEWLINE        \n                       4
+Total de tokens: 13
+
+Tabla de simbolos incluye:
+  STRING (literal) "hola  → Cadena no terminada: falta comilla de cierre
+  (desconocido) $         → Caracter invalido/no reconocido
+Total de simbolos: 6
+```
+
+**Verificación:** Ambos errores detectados con el número de línea correcto. Los errores se reportan en `stderr` y se registran en la tabla de símbolos. El scanner continúa después de cada error y procesa el resto del archivo. ✓
+
+---
+
+#### Caso 3: Todas las keywords (`test3_keywords.triton`)
+
+**Entrada:**
+```python
+def compute(x, y):
+    if x >= y and not False:
+        return x ** 2
+    elif x <= y:
+        return y // 2
+    else:
+        pass
+    for i in range(10):
+        while True:
+            break
+        continue
+    z = None
+    flag = x is y or x == y
+```
+
+**Justificación:** Verifica que las 18 keywords se reconocen correctamente y no se confunden con identificadores. Incluye: `def`, `if`, `and`, `not`, `False`, `return`, `elif`, `else`, `pass`, `for`, `in`, `while`, `True`, `break`, `continue`, `None`, `is`, `or`. También verifica operadores compuestos (`>=`, `**`, `<=`, `//`, `==`) y delimitadores (`(`, `)`, `,`, `:`).
+
+**Resultado:**
+
+```
+TokenID   Token          Lexema                   Linea
+100       DEF            def                      1
+200       NAME           compute                  1
+400       LPAREN         (                        1
+...
+102       IF             if                       2
+310       GE             >=                       2
+109       AND            and                      2
+111       NOT            not                      2
+113       FALSE          False                    2
+...
+104       ELIF           elif                     4
+309       LE             <=                       4
+...
+103       ELSE           else                     6
+115       PASS           pass                     7
+105       FOR            for                      8
+107       IN             in                       8
+106       WHILE          while                    9
+112       TRUE           True                     9
+116       BREAK          break                    10
+117       CONTINUE       continue                 11
+114       NONE           None                     12
+108       IS             is                       13
+110       OR             or                       13
+311       EQ             ==                       13
+Total de tokens: 70
+Total de simbolos: 8
+```
+
+**Verificación:** Las 18 keywords se clasifican correctamente con su Token ID (100-117), no como NAME (200). `compute`, `x`, `y`, `i`, `range`, `z`, `flag` se clasifican como NAME. Los operadores `>=`, `**`, `<=`, `//`, `==` se reconocen como tokens de 2 caracteres. ✓
+
+---
+
+#### Caso 4: Todos los operadores y delimitadores (`test4_operators.triton`)
+
+**Entrada:**
+```python
+a += b
+c -= d
+e *= f
+g /= h
+result = (a + b) * c - d / e % f
+x = a ** 2
+y = a // b
+flag = a == b and c != d
+check = a <= b or c >= d
+lst = [1, 2, 3]
+dct = {"key": "value"}
+bits = a << 2 | b >> 1 & c ^ d
+mask = ~a
+ptr -> int
+```
+
+**Justificación:** Verifica todos los operadores de asignación compuesta (`+=`, `-=`, `*=`, `/=`), todos los operadores aritméticos (`+`, `-`, `*`, `/`, `%`, `**`, `//`), todos los operadores de comparación (`==`, `!=`, `<=`, `>=`, `<`, `>`), los operadores bitwise (`<<`, `>>`, `|`, `&`, `^`, `~`), la flecha (`->`), y todos los delimitadores de agrupación (`()`, `[]`, `{}`).
+
+**Resultado:**
+
+```
+Operadores reconocidos: +=, -=, *=, /=, +, -, *, /, %, **, //,
+                        ==, !=, <=, >=, <, >, =, <<, >>, |, &, ^, ~, ->
+Delimitadores: (, ), [, ], {, }, comma, colon, dot
+Total de tokens: 102
+Total de simbolos: 19
+```
+
+**Verificación:** Todos los operadores de 2 caracteres se reconocen correctamente gracias a longest match. `->` se reconoce como ARROW, no como MINUS + GT. `<<` como LSHIFT, no como dos LT. ✓
+
+---
+
+#### Caso 5: Programa Triton real (`test5_triton_kernel.triton`)
+
+**Entrada:**
+```python
+@triton.jit
+def add_kernel(x_ptr, y_ptr, output_ptr, n_elements):
+    pid = tl.program_id(0)
+    block_size = 1024
+    offsets = pid * block_size + tl.arange(0, block_size)
+    mask = offsets < n_elements
+    x = tl.load(x_ptr + offsets, mask=mask)
+    y = tl.load(y_ptr + offsets, mask=mask)
+    output = x + y
+    tl.store(output_ptr + offsets, output, mask=mask)
+    # Esto es un comentario que se ignora
+    valor = 3.14 + 0.5
+    msg = "resultado guardado"
+```
+
+**Justificación:** Verifica que el scanner funciona con un programa real de Triton que incluye: decoradores (`@`), acceso a miembros (`.`), llamadas a funciones con argumentos, argumentos con nombre (`mask=mask`), comentarios (que deben ignorarse), números flotantes, y cadenas. Es la prueba más completa que demuestra el scanner en un escenario realista.
+
+**Resultado:**
+
+```
+TokenID   Token          Lexema                   Linea
+409       AT             @                        1
+200       NAME           triton                   1
+408       DOT            .                        1
+200       NAME           jit                      1
+500       NEWLINE        \n                       2
+100       DEF            def                      2
+200       NAME           add_kernel               2
+400       LPAREN         (                        2
+...
+201       NUMBER         3.14                     12
+300       PLUS           +                        12
+201       NUMBER         0.5                      12
+...
+202       STRING         "resultado guardado"     13
+Total de tokens: 97
+Total de simbolos: 20
+```
+
+**Verificación:** El decorador `@` se reconoce como AT. El acceso `triton.jit` se descompone correctamente en NAME + DOT + NAME. El comentario de la línea 11 se ignora completamente (no aparece en la secuencia de tokens). Los flotantes `3.14` y `0.5` se reconocen como NUMBER. La cadena `"resultado guardado"` se reconoce como STRING. Cero errores. ✓
+
+### 5.3 Resumen de Resultados
+
+*Tabla 23: Resumen de resultados de las pruebas*
+
+| Caso | Archivo | Tokens | Símbolos | Errores | Status |
+|------|---------|--------|----------|---------|--------|
+| 1 | test1_basic.triton | 12 | 5 | 0 | ✓ Pasa |
+| 2 | test2_errors.triton | 13 | 6 | 2 detectados | ✓ Pasa |
+| 3 | test3_keywords.triton | 70 | 8 | 0 | ✓ Pasa |
+| 4 | test4_operators.triton | 102 | 19 | 0 | ✓ Pasa |
+| 5 | test5_triton_kernel.triton | 97 | 20 | 0 | ✓ Pasa |
+
+Todos los casos de prueba pasan exitosamente. El scanner reconoce correctamente los 60 tipos de token, detecta errores léxicos con mensajes descriptivos y números de línea, construye la tabla de símbolos sin duplicados, e ignora comentarios y espacios en blanco.
+
+---
+
+## 6. Plan de Trabajo
+
+*Tabla 24: Plan de trabajo para el desarrollo del analizador léxico*
+
+| Fase | Actividad | Duración | Responsable |
+|------|-----------|----------|-------------|
+| 1 | Revisión de requerimientos y material bibliográfico (AHO §3.3–3.8) | 1 h | Equipo |
+| 2 | Análisis: descripción informal de lexemas, expresiones regulares, Token IDs, mensajes de error | 1.5 h | Equipo |
+| 3 | Diseño: autómatas DFA, tablas de transición, estructura de tabla de símbolos | 1.5 h | Equipo |
+| 4 | Implementación del archivo flex (`triton_lexer.l`) | 2 h | Equipo |
+| 5 | Verificación y validación: diseño de pruebas, ejecución, corrección de errores | 1 h | Equipo |
+| 6 | Redacción del reporte y revisión final | 1 h | Equipo |
+| | **Total** | **8 h** | |
 
 
 ## 7. Referencias

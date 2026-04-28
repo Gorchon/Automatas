@@ -1,0 +1,14 @@
+a += b
+c -= d
+e *= f
+g /= h
+result = (a + b) * c - d / e % f
+x = a ** 2
+y = a // b
+flag = a == b and c != d
+check = a <= b or c >= d
+lst = [1, 2, 3]
+dct = {"key": "value"}
+bits = a << 2 | b >> 1 & c ^ d
+mask = ~a
+ptr -> int
