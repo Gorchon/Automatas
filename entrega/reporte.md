@@ -679,9 +679,8 @@ Este autómata reconoce identificadores válidos: comienzan con letra o `_`, seg
 ![Autómata NAME](../Images/NAME_DFA.png)
 
 **Estados:**
-- **q0** — Estado inicial. Espera el primer carácter.
-- **q1_acepta** — Estado de aceptación. Se acumulan letras, dígitos y `_`.
-- **qErr** — Error: el identificador inició con un dígito.
+- **q0** — Estado inicial. Espera el primer carácter o `_`.
+- **q1** — Estado de aceptación. Se acumulan letras, dígitos y `_`.
 
 **Traza de ejemplo para `"pid "` (con espacio al final):**
 
@@ -704,9 +703,9 @@ Reconoce enteros (`[0-9]+`) y flotantes (`[0-9]+.[0-9]+`). El estado q2 (tras el
 
 **Estados:**
 - **q0** — Estado inicial.
-- **q1_entero** — Aceptación. Se han leído uno o más dígitos (entero válido).
+- **q1** — Aceptación. Se han leído uno o más dígitos (entero válido).
 - **q2** — No aceptación. Se leyó el punto decimal, se requiere al menos un dígito después.
-- **q3_flotante** — Aceptación. Dígitos después del punto (flotante válido).
+- **q3** — Aceptación. Dígitos después del punto (flotante válido).
 
 **Traza de ejemplo para `"3.14 "`:**
 
@@ -730,10 +729,9 @@ Reconoce cadenas delimitadas por comillas dobles, con soporte para secuencias de
 
 **Estados:**
 - **q0** — Estado inicial. Espera la comilla de apertura.
-- **q1_leyendo** — Dentro de la cadena. Acepta cualquier carácter excepto `"`, `\` y `\n`.
-- **q2_escape** — Se leyó un `\`. El siguiente carácter se toma literalmente (escape).
-- **q3_acepta** — Aceptación. Se encontró la comilla de cierre.
-- **qErr** — Error. Se llegó a fin de línea sin cerrar la cadena.
+- **q1** — Dentro de la cadena. Acepta cualquier carácter excepto `"` o `\`.
+- **q2** — Se leyó un `\`. El siguiente carácter se toma literalmente (escape).
+- **q3** — Aceptación. Se encontró la comilla de cierre.
 
 **Traza de ejemplo para `"hola"`:**
 
@@ -758,7 +756,7 @@ Este autómata combina el reconocimiento de tres keywords que comparten prefijos
 
 **Descripción:**
 - Desde q0, al leer `i` se inicia el camino hacia `if`.
-- Desde q0, al leer `e` se inicia el camino hacia `else` o `elif`, que se bifurca en q_el.
+- Desde q0, al leer `e` se inicia el camino hacia `else` o `elif`, que se bifurca en q4.
 - Cada keyword se acepta solo si el siguiente carácter **no** es alfanumérico ni `_` (para distinguir `if` de `iffy` por ejemplo).
 
 ---
@@ -815,7 +813,6 @@ Las tablas de transición son la representación tabular de cada AFD. Cada fila 
 | q2 | q3 | error | error (retract) |
 | *q3 | q3 | error | acepta FLOAT |
 
-**Nota:** Si en q2 no llega un dígito, se retrocede y se emite el entero acumulado hasta q1.
 
 #### 3.2.3 Tabla de transición — Cadenas (STRING)
 
@@ -846,7 +843,7 @@ Las tablas de transición son la representación tabular de cada AFD. Cada fila 
 | q7     | —  | q8 | —  | —  | —  | —                             |
 | * q8   | —  | —  | —  | —  | —  | acepta **ELIF** (si no es letra/dígito/_) |
 
-**Nota:** Si en cualquier estado intermedio llega un carácter alfanumérico inesperado, el lexema completo se trata como un identificador (NAME), no como keyword.
+**Nota:** Si en cualquier estado intermedio o terminal llega un carácter alfanumérico inesperado, el lexema completo se trata como un identificador (NAME), no como keyword.
 
 #### 3.2.5 Tabla de transición — `while`
 
