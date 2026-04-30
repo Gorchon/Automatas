@@ -21,11 +21,12 @@
 |--|--|
 | **Autores:** | José María Soto Valenzuela — A01254831 |
 | | César Alan Silva Ramos — A01252916 |
-| | Julian Espinoza — A01254679 |
-| | Fong — A0XXXXXXX |
-| **Profesor:** | Dr. Salvador Hinojosa |
+| | Julian Enrique Espinoza Valenzuela — A01254679 |
+| | Jose Pablo Fong Coronado — A01252402 |
+| | Victor Jaziel Coronado Flores - A01644090 |
+| **Profesor:** | Adolfo Ernesto Arroyo Alanís |
 | **Campus:** | Guadalajara |
-| **Fecha:** | Abril 2026 |
+| **Fecha:** | 30 Abril 2026 |
 
 </div>
 
